@@ -5,8 +5,7 @@
     - Navigate to the same directory as crepe_stand.c
     - Back up your crepe_stand.c (just in case)
 
-    - Create the ./dumps directory
-    - Set the below parameters as desired
+    - Set the below default values (if you want)
     - Compile this program with `gcc -O2 bulk_test_ass2.c -o bulk_test_ass2`
 
     - Compile your crepe_stand using `gcc -fsanitize=leak crepe_stand.c main.c -o crepe_stand`
@@ -33,13 +32,16 @@
 // number of bytes of input to provide
 // don't go above ~60000 or it'll deadlock
 // smaller values are better for debugging
-#define COMMAND_BUFFER_SIZE 1000
+#define DEFAULT_COMMAND_BUFFER_SIZE 500
 
 // start with something small in case you get a lot of failures
-#define NUM_TESTS 100
+#define DEFAULT_NUM_TESTS 100
 
 // causes lots of false positives, you'll probably want to set this to 0
-#define TEST_MAX_PROFIT_PERIOD 1
+#define DEFAULT_TEST_MAX_PROFIT_PERIOD 1
+
+// how often to print updated information about passed tests
+#define FEEDBACK_EVERY 1000 // tests
 //---------------------------------------//
 
 #include <stdio.h>
@@ -68,6 +70,8 @@ char recent_names[NUM_RECENT_NAMES][32] = {0};
 int recent_names_idx = 0;
 
 char trivial_commands[] = {'p', 'p', 'p', 'c', 's', 't', 'd', 'd', 'd', '>', '<', 'w'};
+
+int test_max_profit_period = DEFAULT_TEST_MAX_PROFIT_PERIOD;
 
 // the first "custom" generates a guaranteed valid input
 char *crepe_types[] = {"custom", "custom", "matcha", "strawberry", "chocolate"};
@@ -246,7 +250,7 @@ int trivial_command(char *str) {
 }
 
 int max_profit_period(char *str) {
-    if (!TEST_MAX_PROFIT_PERIOD) {
+    if (!test_max_profit_period) {
         // do something else
         return trivial_command(str);
     }
@@ -268,8 +272,8 @@ void generate_setup(char str[SETUP_BUFFER_SIZE]) {
 }
 
 
-void generate_commands(char str[COMMAND_BUFFER_SIZE]) {
-    char *end = str + COMMAND_BUFFER_SIZE - 1;
+void generate_commands(char *str, int buffer_size) {
+    char *end = str + buffer_size - 1;
 
     // reset the recent dates and names
     recent_dates_idx = recent_names_idx = 1;
@@ -341,7 +345,7 @@ pid_t run_program(char *path, char **argv, FILE **stdin_fp, FILE **stdout_fp) {
     return child_pid;
 }
 
-void dump_results(char setup[SETUP_BUFFER_SIZE], char commands[COMMAND_BUFFER_SIZE]) {
+void dump_results(char setup[SETUP_BUFFER_SIZE], char *commands) {
     char filename[30];
     sprintf(filename, "./dumps/dump_%d.txt", rand());
     FILE *fp = fopen(filename, "w");
@@ -354,7 +358,7 @@ void dump_results(char setup[SETUP_BUFFER_SIZE], char commands[COMMAND_BUFFER_SI
     }
 }
 
-bool compare(char **argv) {
+bool compare(char **argv, char *setup_buffer, char *command_buffer, int command_buffer_size) {
     pid_t child_pid_1, child_pid_2;
     FILE *stdin_fp_1, *stdout_fp_1, *stdin_fp_2, *stdout_fp_2;
     int status_1, status_2;
@@ -363,20 +367,19 @@ bool compare(char **argv) {
     child_pid_2 = run_program(REFERENCE_FILE, argv, &stdin_fp_2, &stdout_fp_2);
 
     // generate setup string
-    char setup[SETUP_BUFFER_SIZE] = "";
-    generate_setup(setup);
+    setup_buffer[0] = '\0';
+    generate_setup(setup_buffer);
 
     // generate commands
-    // SETUP_BUFFER_SIZE + COMMAND_BUFFER_SIZE < 64kb so no deadlocks (:
-    char coms[COMMAND_BUFFER_SIZE] = "";
-    generate_commands(coms);
+    command_buffer[0] = '\0';
+    generate_commands(command_buffer, command_buffer_size);
 
-    fputs(setup, stdin_fp_1);
-    fputs(coms, stdin_fp_1);
+    fputs(setup_buffer, stdin_fp_1);
+    fputs(command_buffer, stdin_fp_1);
     fclose(stdin_fp_1);
 
-    fputs(setup, stdin_fp_2);
-    fputs(coms, stdin_fp_2);
+    fputs(setup_buffer, stdin_fp_2);
+    fputs(command_buffer, stdin_fp_2);
     fclose(stdin_fp_2);
 
     bool equal = true;
@@ -396,7 +399,7 @@ bool compare(char **argv) {
 
             equal = false;
 
-            dump_results(setup, coms);
+            dump_results(setup_buffer, command_buffer);
 
             break;
         }
@@ -432,14 +435,65 @@ int main(int argc, char *argv[], char *env[]) {
     // ignore SIGPIPE errors
     signal(SIGPIPE, SIG_IGN);
 
+
+    // make the dumps and dumps/old directory if it doesn't exist
+    system("mkdir -p ./dumps/old");
+
+    // move old dumps to ./dumps/old
+    system("mv \"./dumps/!(old)\" \"./dumps/old\" 2>/dev/null");
+
+
+    // start!
+    printf("Remember to recompile your program if you've changed it!\n");
+    printf("(by running `gcc -fsanitize=leak crepe_stand.c main.c -o crepe_stand`)\n");
+
+    // get the command buffer size
+    int command_buffer_size = DEFAULT_COMMAND_BUFFER_SIZE;
+    printf("How many bytes of input do you want per test? (default is %d): ", DEFAULT_COMMAND_BUFFER_SIZE);
+    char command_buffer_size_s[11];
+    fgets(command_buffer_size_s, 11, stdin);
+    if (command_buffer_size_s[0] != '\n') {
+        command_buffer_size = atoi(command_buffer_size_s);
+    }
+
+    if (command_buffer_size < 70) {
+        printf("The input size is set very low! This might cause problems.\n");
+    }
+
+    // make the command buffer and setup buffer
+    char *command_buffer = malloc(sizeof(char) * command_buffer_size);
+    char setup_buffer[SETUP_BUFFER_SIZE];
+
+    // get the number of tests
+    int num_tests = DEFAULT_NUM_TESTS;
+    printf("How many tests do you want to run? (default is %d): ", DEFAULT_NUM_TESTS);
+    char num_tests_s[11];
+    fgets(num_tests_s, 11, stdin);
+    if (num_tests_s[0] != '\n') {
+        num_tests = atoi(num_tests_s);
+    }
+
+    // get whether or not maximum_profit_period should be tested
+    printf("Do you want to test maximum_profit_period? (1 or 0, default is %d): ", DEFAULT_TEST_MAX_PROFIT_PERIOD);
+    char test_max_profit_period_s[11];
+    fgets(test_max_profit_period_s, 11, stdin);
+    if (test_max_profit_period_s[0] != '\n') {
+        test_max_profit_period = atoi(test_max_profit_period_s);
+    }
+
+    printf("Started testing! Will do %d tests with %d bytes input each.\n", num_tests, command_buffer_size);
+
     int num_passed = 0;
-    for (int i = 0; i < NUM_TESTS; i++) {
-        if (compare(argv)) {
+    for (int i = 0; i < num_tests; i++) {
+        if (compare(argv, setup_buffer, command_buffer, command_buffer_size)) {
             num_passed++;
+        }
+        if (i != 0 && i % FEEDBACK_EVERY == 0) {
+            printf("Testing... %d/%d tests passed.\n", num_passed, i + 1);
         }
     }
 
-    printf("Testing done. %d/%d tests passed.\n", num_passed, NUM_TESTS);
+    printf("Testing done. %d/%d tests passed.\n", num_passed, num_tests);
 
     return 0;
 }
