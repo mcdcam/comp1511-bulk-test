@@ -8,11 +8,19 @@
     - Set the below default values (if you want)
     - Compile this program with `gcc -O2 bulk_test_ass2.c -o bulk_test_ass2`
 
-    - Compile your crepe_stand using `gcc -fsanitize=leak crepe_stand.c main.c -o crepe_stand`
-        - Or, if you don't want leak checking, use `gcc crepe_stand.c main.c -o crepe_stand`
-        - If you're leak checking, it's best to use a very small value of
-          COMMAND_BUFFER_SIZE (e.g. 300) so that you can identify the problem
+    - Compile your crepe_stand using one of the following commands:
+        - `gcc -fsanitize=address crepe_stand.c main.c -o crepe_stand` to check for a
+           range of errors including memory leaks, use after free etc.
+           This is quite slow for tests with small inputs (but still way faster than dcc).
+
+        - Or, use `gcc -fsanitize=leak crepe_stand.c main.c -o crepe_stand` to check only for memory leaks.
+          Slightly faster than the above.
+
+        - Or, if you don't want leak checking, use `gcc crepe_stand.c main.c -o crepe_stand`.
+          Significantly faster than the above.
+
     - Run the program using `./bulk_test_ass2
+        - It's best to start out with a small input size so that you can easily identify the source of errors.
 
     - Run `chmod 755 compare.sh`
     - Copy the path of a dump file (e.g. dumps/dump_365263232.txt)
@@ -445,7 +453,7 @@ int main(int argc, char *argv[], char *env[]) {
 
     // start!
     printf("Remember to recompile your program if you've changed it!\n");
-    printf("(by running `gcc -fsanitize=leak crepe_stand.c main.c -o crepe_stand`)\n");
+    printf("(by running `gcc -fsanitize=address crepe_stand.c main.c -o crepe_stand`)\n");
 
     // get the command buffer size
     int command_buffer_size = DEFAULT_COMMAND_BUFFER_SIZE;
@@ -458,6 +466,8 @@ int main(int argc, char *argv[], char *env[]) {
 
     if (command_buffer_size < 70) {
         printf("The input size is set very low! This might cause problems.\n");
+    } else if (command_buffer_size > 60000) {
+        printf("The input size is set very high! This might cause problems.\n");
     }
 
     // make the command buffer and setup buffer
@@ -488,7 +498,7 @@ int main(int argc, char *argv[], char *env[]) {
         if (compare(argv, setup_buffer, command_buffer, command_buffer_size)) {
             num_passed++;
         }
-        if (i != 0 && i % FEEDBACK_EVERY == 0) {
+        if ((i + 1) % FEEDBACK_EVERY == 0) {
             printf("Testing... %d/%d tests passed.\n", num_passed, i + 1);
         }
     }
