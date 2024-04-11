@@ -5,6 +5,8 @@
 - Follow the instructions at the top of `bulk_test_ass2.c`
 
 ### Changelog
-- 2024-04-10:
   - No longer requires recompilation to change options
   - Periodically prints updates
+  - Dumps directory will be automatically created
+  - Dumps from previous runs will be automatically moved to dumps/old
+  - Changed instructions
