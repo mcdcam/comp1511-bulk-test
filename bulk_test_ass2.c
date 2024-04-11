@@ -448,7 +448,7 @@ int main(int argc, char *argv[], char *env[]) {
     system("mkdir -p ./dumps/old");
 
     // move old dumps to ./dumps/old
-    system("mv \"./dumps/!(old)\" \"./dumps/old\" 2>/dev/null");
+    system("bash -c \"mv ./dumps/* ./dumps/old\" 2>/dev/null");
 
 
     // start!
