@@ -10,3 +10,6 @@
   - Dumps directory will be automatically created
   - Dumps from previous runs will be automatically moved to dumps/old
   - Changed instructions
+  - Slightly changed command probabilities
+  - Will dump inputs if process returns non-zero exit code
+  - Dumps now include the exit code in the filename
