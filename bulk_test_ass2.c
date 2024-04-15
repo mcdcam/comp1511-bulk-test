@@ -19,7 +19,7 @@
         - Or, if you don't want leak checking, use `gcc crepe_stand.c main.c -o crepe_stand`.
           Significantly faster than the above.
 
-    - Run the program using `./bulk_test_ass2
+    - Run the program using `./bulk_test_ass2`
         - It's best to start out with a small input size so that you can easily identify the source of errors.
 
     - Run `chmod 755 compare.sh`
@@ -293,9 +293,9 @@ void generate_commands(char *str, int buffer_size) {
         str += sprintf(str, "\n");
 
         int command_no = rand() % 100;
-        if (command_no < 15) {
+        if (command_no < 20) {
             str += append_crepe(str);
-        } else if (command_no < 25) {
+        } else if (command_no < 28) {
             str += insert_crepe(str);
         } else if (command_no < 35) {
             str += new_day(str);
@@ -353,9 +353,9 @@ pid_t run_program(char *path, char **argv, FILE **stdin_fp, FILE **stdout_fp) {
     return child_pid;
 }
 
-void dump_results(char setup[SETUP_BUFFER_SIZE], char *commands) {
+void dump_results(char setup[SETUP_BUFFER_SIZE], char *commands, int exit_code) {
     char filename[30];
-    sprintf(filename, "./dumps/dump_%d.txt", rand());
+    sprintf(filename, "./dumps/dump_%d_exit_%d.txt", rand(), exit_code);
     FILE *fp = fopen(filename, "w");
     if (fp != NULL) {
         fputs(setup, fp);
@@ -407,8 +407,6 @@ bool compare(char **argv, char *setup_buffer, char *command_buffer, int command_
 
             equal = false;
 
-            dump_results(setup_buffer, command_buffer);
-
             break;
         }
 
@@ -422,10 +420,15 @@ bool compare(char **argv, char *setup_buffer, char *command_buffer, int command_
     waitpid(child_pid_1, &status_1, 0);
     waitpid(child_pid_2, &status_2, 0);
     if (status_1 != 0) {
+        equal = false;
         printf("process 1 exited with non-zero exit code: %d\n", status_1);
     }
     if (status_2 != 0) {
         printf("process 2 exited with non-zero exit code: %d\n", status_2);
+    }
+
+    if (equal == false) {
+        dump_results(setup_buffer, command_buffer, status_1);
     }
 
     return equal;
