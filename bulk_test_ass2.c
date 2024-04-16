@@ -35,7 +35,7 @@
 
 //------------> USER PARAMS <------------//
 #define OUR_FILE "./crepe_stand"
-#define REFERENCE_FILE "/home/cs1511/bin/crepe_stand"
+#define REFERENCE_FILE "./crepe_stand_reference"
 
 // number of bytes of input to provide
 // don't go above ~60000 or it'll deadlock
@@ -201,9 +201,8 @@ int new_day(char *str) {
         // use a recent year
         int idx = (rand() % recent_dates_idx) % NUM_RECENT_DATES;
         char year_s[5];
-        strncpy(year_s, recent_dates[idx], 4);
+        strncpy(year_s, recent_dates[idx], 5);
         int year = atoi(year_s);
-        //printf("YEAR: %d\nYEAR_S: %s\n", year, year_s);
         return (2 + random_date_in_year(str + 2, year));
     }
     
@@ -350,11 +349,14 @@ pid_t run_program(char *path, char **argv, FILE **stdin_fp, FILE **stdout_fp) {
     close(stdin_pipe[0]);
     close(stdout_pipe[1]);
 
+    // free the file actions object
+    posix_spawn_file_actions_destroy(&action);
+
     return child_pid;
 }
 
 void dump_results(char setup[SETUP_BUFFER_SIZE], char *commands, int exit_code) {
-    char filename[30];
+    char filename[50];
     sprintf(filename, "./dumps/dump_%d_exit_%d.txt", rand(), exit_code);
     FILE *fp = fopen(filename, "w");
     if (fp != NULL) {
