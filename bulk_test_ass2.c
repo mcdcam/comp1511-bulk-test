@@ -35,7 +35,7 @@
 
 //------------> USER PARAMS <------------//
 #define OUR_FILE "./crepe_stand"
-#define REFERENCE_FILE "./crepe_stand_reference"
+#define REFERENCE_FILE "/home/cs1511/bin/crepe_stand"
 
 // number of bytes of input to provide
 // don't go above ~60000 or it'll deadlock
